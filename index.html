@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Banana Predictor 🍌</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #fefbe9;
+    }
+    h1 { color: #ffb703; }
+    video, img {
+      max-width: 300px;
+      margin: 10px;
+      border-radius: 12px;
+      border: 2px solid #ddd;
+    }
+    button {
+      margin: 8px;
+      padding: 10px 20px;
+      background: #ffb703;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #fb8500; }
+    #results {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍌 Banana Freshness Predictor</h1>
+
+  <!-- Camera Preview -->
+  <video id="video" autoplay playsinline></video><br>
+  <button id="captureBtn">📸 Capture</button>
+
+  <!-- File Upload -->
+  <input type="file" id="fileInput" accept="image/*"><br><br>
+
+  <!-- Canvas for Captured Image -->
+  <canvas id="canvas" style="display:none;"></canvas>
+  <img id="preview" alt="Image preview will appear here" />
+
+  <!-- Results -->
+  <div id="results"></div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const captureBtn = document.getElementById("captureBtn");
+    const preview = document.getElementById("preview");
+    const results = document.getElementById("results");
+    const fileInput = document.getElementById("fileInput");
+
+    // Start camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => console.error("Camera error:", err));
+
+    // Capture from camera
+    captureBtn.addEventListener("click", () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      canvas.toBlob(sendImage, "image/jpeg");
+    });
+
+    // Upload from device
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (file) {
+        preview.src = URL.createObjectURL(file);
+        sendImage(file);
+      }
+    });
+
+    // Send image to backend
+    function sendImage(fileOrBlob) {
+      const formData = new FormData();
+      formData.append("file", fileOrBlob, "banana.jpg");
+
+      fetch("http://127.0.0.1:8000/predict", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        preview.src = "http://127.0.0.1:8000" + data.image_url;
+        results.innerHTML = `
+          <p><b>Category:</b> ${data.category}</p>
+          <p><b>Confidence:</b> ${data.confidence}%</p>
+          <p><b>Days Left:</b> ${data.days_left}</p>
+        `;
+      })
+      .catch(err => {
+        console.error("Prediction error:", err);
+        results.innerHTML = "<p style='color:red;'>Prediction failed. Check console.</p>";
+      });
+    }
+  </script>
+</body>
+</html>
